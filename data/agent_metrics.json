@@ -1,0 +1,10 @@
+{
+  "total_cases": 5,
+  "recovered_cases": 5,
+  "stopped_cases": 0,
+  "escalated_cases": 0,
+  "recovery_rate": 1.0,
+  "total_amount_recovered": 22696.46,
+  "average_recovery": 4539.2919999999995,
+  "average_attempts": 0.8
+}
