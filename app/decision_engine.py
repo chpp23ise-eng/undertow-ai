@@ -16,15 +16,52 @@ def load_model():
     return joblib.load(MODEL_PATH)
 
 
-def rank_interventions(model, event):
+def rank_interventions(
+    model,
+    event,
+    excluded_interventions=None,
+):
     """
-    Predict the recovery probability for every intervention
-    and rank them by expected money recovered.
+    Predict recovery probability for every available
+    intervention and rank them by expected money recovered.
+
+    Interventions that have already been attempted can
+    be excluded.
     """
+
+    if excluded_interventions is None:
+        excluded_interventions = set()
+    else:
+        excluded_interventions = set(
+            excluded_interventions
+        )
+
+    available_interventions = [
+        intervention
+        for intervention in INTERVENTIONS
+        if intervention not in excluded_interventions
+    ]
+
+    # No interventions remain.
+    if not available_interventions:
+        return pd.DataFrame(
+            columns=[
+                "amount",
+                "event_type",
+                "bank",
+                "error_code",
+                "product_id",
+                "payment_method",
+                "intervention",
+                "recovery_probability",
+                "expected_recovery",
+            ]
+        )
 
     rows = []
 
-    for intervention in INTERVENTIONS:
+    for intervention in available_interventions:
+
         rows.append(
             {
                 "amount": event["amount"],
@@ -39,9 +76,13 @@ def rank_interventions(model, event):
 
     candidates = pd.DataFrame(rows)
 
-    probabilities = model.predict_proba(candidates)[:, 1]
+    probabilities = model.predict_proba(
+        candidates
+    )[:, 1]
 
-    candidates["recovery_probability"] = probabilities
+    candidates["recovery_probability"] = (
+        probabilities
+    )
 
     candidates["expected_recovery"] = (
         candidates["amount"]
@@ -56,42 +97,85 @@ def rank_interventions(model, event):
     return candidates
 
 
-def make_decision(model, event):
-    """Choose the intervention with the highest expected recovery."""
+def make_decision(
+    model,
+    event,
+    excluded_interventions=None,
+):
+    """
+    Choose the available intervention with the
+    highest expected recovery.
+    """
 
-    ranked = rank_interventions(model, event)
+    ranked = rank_interventions(
+        model=model,
+        event=event,
+        excluded_interventions=excluded_interventions,
+    )
+
+    # No actions remain.
+    if ranked.empty:
+
+        return {
+            "event_id": event["event_id"],
+            "amount": event["amount"],
+            "recommended_action": None,
+            "recovery_probability": 0.0,
+            "expected_recovery": 0.0,
+            "ranked_options": ranked,
+        }
 
     best = ranked.iloc[0]
 
     return {
         "event_id": event["event_id"],
         "amount": event["amount"],
-        "recommended_action": best["intervention"],
-        "recovery_probability": best["recovery_probability"],
-        "expected_recovery": best["expected_recovery"],
+        "recommended_action": best[
+            "intervention"
+        ],
+        "recovery_probability": best[
+            "recovery_probability"
+        ],
+        "expected_recovery": best[
+            "expected_recovery"
+        ],
         "ranked_options": ranked,
     }
 
 
 if __name__ == "__main__":
 
-    # Load the trained model.
     model = load_model()
 
-    # Load our event data.
-    df = pd.read_csv("data/revenue_events.csv")
+    df = pd.read_csv(
+        "data/revenue_events.csv"
+    )
 
-    # Pick one event to demonstrate the decision engine.
     event = df.iloc[0].to_dict()
 
-    decision = make_decision(model, event)
+    decision = make_decision(
+        model,
+        event,
+    )
 
-    print("UNDERTOW RECOVERY DECISION")
-    print("==========================")
+    print(
+        "UNDERTOW RECOVERY DECISION"
+    )
+
+    print(
+        "=========================="
+    )
+
     print()
 
-    print(f"Event: {decision['event_id']}")
-    print(f"Amount: ₹{decision['amount']:,.2f}")
+    print(
+        f"Event: {decision['event_id']}"
+    )
+
+    print(
+        f"Amount: ₹{decision['amount']:,.2f}"
+    )
+
     print()
 
     print(
@@ -110,8 +194,12 @@ if __name__ == "__main__":
     )
 
     print()
+
     print("All intervention options:")
-    print("--------------------------")
+
+    print(
+        "--------------------------"
+    )
 
     display_columns = [
         "intervention",
@@ -120,6 +208,7 @@ if __name__ == "__main__":
     ]
 
     print(
-        decision["ranked_options"][display_columns]
-        .to_string(index=False)
+        decision["ranked_options"][
+            display_columns
+        ].to_string(index=False)
     )
