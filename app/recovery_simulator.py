@@ -4,85 +4,138 @@ import pandas as pd
 
 np.random.seed(42)
 
+INTERVENTIONS = [
+    "RETRY_PAYMENT",
+    "SEND_REMINDER",
+    "ALTERNATE_PAYMENT",
+]
 
-def assign_recovery_probability(row):
+
+def get_hidden_probabilities(row):
     """
-    Hidden ground-truth probability.
+    Generate hidden recovery probabilities for each intervention.
 
-    Undertow will NOT see this value directly.
-    The simulator uses it to determine whether
-    a recovery attempt succeeds.
+    Undertow will NOT see these probabilities.
+    They represent the simulated ground truth.
     """
 
-    probability = 0.40
+    probabilities = {
+        "RETRY_PAYMENT": 0.45,
+        "SEND_REMINDER": 0.40,
+        "ALTERNATE_PAYMENT": 0.50,
+    }
 
-    # Different recovery behavior for different event types
+    # Payment failures are generally good candidates for retry.
     if row["event_type"] == "PAYMENT_FAILED":
-        probability += 0.15
+        probabilities["RETRY_PAYMENT"] += 0.20
 
-    elif row["event_type"] == "CHECKOUT_ABANDONED":
-        probability += 0.05
+    # Checkout abandonment responds better to reminders.
+    if row["event_type"] == "CHECKOUT_ABANDONED":
+        probabilities["SEND_REMINDER"] += 0.20
 
-    elif row["event_type"] == "SUBSCRIPTION_FAILED":
-        probability += 0.10
+    # Subscription failures benefit from alternate payment methods.
+    if row["event_type"] == "SUBSCRIPTION_FAILED":
+        probabilities["ALTERNATE_PAYMENT"] += 0.15
 
-    elif row["event_type"] == "INVOICE_OVERDUE":
-        probability -= 0.10
+    # Overdue invoices respond better to reminders.
+    if row["event_type"] == "INVOICE_OVERDUE":
+        probabilities["SEND_REMINDER"] += 0.15
 
-    # Some payment failures are harder to recover
+    # E42 is deliberately harder to recover through retry.
     if row["error_code"] == "E42":
-        probability -= 0.10
+        probabilities["RETRY_PAYMENT"] -= 0.15
+        probabilities["ALTERNATE_PAYMENT"] += 0.10
 
-    # Bank A has a hidden degradation pattern
+    # Hidden systemic problem:
+    # Bank A + E42 responds poorly to direct payment retries.
     if row["bank"] == "Bank_A" and row["error_code"] == "E42":
-        probability -= 0.15
+        probabilities["RETRY_PAYMENT"] -= 0.20
+        probabilities["ALTERNATE_PAYMENT"] += 0.15
 
-    # Keep probability in a sensible range
-    return np.clip(probability, 0.05, 0.90)
+    # Keep probabilities between 5% and 90%.
+    for intervention in probabilities:
+        probabilities[intervention] = np.clip(
+            probabilities[intervention],
+            0.05,
+            0.90,
+        )
+
+    return probabilities
 
 
 def simulate_recovery(df):
-    """Simulate what happens when recovery is attempted."""
+    """
+    Create hidden ground truth for every event and intervention.
+    """
 
     df = df.copy()
 
-    # Hidden value used only by the simulator
-    df["hidden_recovery_probability"] = df.apply(
-        assign_recovery_probability,
-        axis=1,
-    )
+    hidden_probabilities = []
 
-    # Simulate the actual outcome
-    random_values = np.random.random(len(df))
+    for _, row in df.iterrows():
+        probabilities = get_hidden_probabilities(row)
+        hidden_probabilities.append(probabilities)
 
-    df["recovered"] = (
-        random_values < df["hidden_recovery_probability"]
-    )
+    for intervention in INTERVENTIONS:
 
-    df["amount_recovered"] = np.where(
-        df["recovered"],
-        df["amount"],
-        0,
-    )
+        name = intervention.lower()
+
+        # Store the hidden probability.
+        # This is ground truth and will NOT be used as an ML feature.
+        df[f"hidden_prob_{name}"] = [
+            probabilities[intervention]
+            for probabilities in hidden_probabilities
+        ]
+
+        # Simulate whether the intervention succeeds.
+        random_values = np.random.random(len(df))
+
+        df[f"recovered_{name}"] = (
+            random_values < df[f"hidden_prob_{name}"]
+        )
+
+        # Amount recovered if the intervention succeeds.
+        df[f"amount_recovered_{name}"] = np.where(
+            df[f"recovered_{name}"],
+            df["amount"],
+            0,
+        )
 
     return df
 
 
 if __name__ == "__main__":
+
+    # Load the original revenue events.
     df = pd.read_csv("data/revenue_events.csv")
 
+    # Generate simulated recovery outcomes.
     df = simulate_recovery(df)
 
     print("Total events:", len(df))
     print()
 
-    print("Recovery outcomes:")
-    print(df["recovered"].value_counts())
-    print()
+    # Display recovery results for each intervention.
+    for intervention in INTERVENTIONS:
 
-    print("Total amount:")
-    print(f"₹{df['amount'].sum():,.2f}")
-    print()
+        name = intervention.lower()
 
-    print("Total amount recovered:")
-    print(f"₹{df['amount_recovered'].sum():,.2f}")
+        recovered_count = df[
+            f"recovered_{name}"
+        ].sum()
+
+        recovered_amount = df[
+            f"amount_recovered_{name}"
+        ].sum()
+
+        print(intervention)
+        print("  Recovered events:", recovered_count)
+        print(f"  Amount recovered: ₹{recovered_amount:,.2f}")
+        print()
+
+    # Save the complete simulated outcomes.
+    output_path = "data/recovery_outcomes.csv"
+
+    df.to_csv(output_path, index=False)
+
+    print(f"Saved outcomes to: {output_path}")
