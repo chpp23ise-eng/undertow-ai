@@ -3,6 +3,7 @@ import inspect
 
 import pandas as pd
 import streamlit as st
+import altair as alt
 
 
 # =========================================================
@@ -50,116 +51,273 @@ OUTCOMES_PATH = DATA_DIR / "experiment_test_outcomes.csv"
 st.markdown(
     """
 <style>
+:root {
+    --ut-bg:#F6F8FB;
+    --ut-surface:#FFFFFF;
+    --ut-border:#D9E1EC;
+    --ut-text:#172033;
+    --ut-muted:#5B6B82;
+    --ut-primary:#2563EB;
+    --ut-primary-hover:#1D4ED8;
+    --ut-primary-soft:#EFF6FF;
+    --ut-success:#16A34A;
+    --ut-warning:#D97706;
+    --ut-danger:#DC2626;
+    --ut-purple:#7C3AED;
+}
 
+/* ---------- Global ---------- */
+.stApp {
+    background:var(--ut-bg) !important;
+    color:var(--ut-text) !important;
+}
 .block-container {
-    max-width: 1500px;
-    padding-top: 1.2rem;
-    padding-bottom: 4rem;
+    width: 100% !important;
+    max-width: 1500px !important;
+    padding: 1.25rem clamp(.75rem, 2vw, 2rem) 4rem !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
 }
 
-/* Top navigation */
-
-.topbar {
-    border-bottom: 1px solid rgba(128,128,128,.20);
-    padding-bottom: 1rem;
-    margin-bottom: 1.5rem;
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+.main,
+section.main {
+    overflow-x: hidden !important;
+}
+html, body, [class*="css"] {
+    font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+h1,h2,h3,h4,h5 {
+    color:var(--ut-text) !important;
+    letter-spacing:-.025em;
+    max-width:100% !important;
+    overflow-wrap:anywhere !important;
+}
+p, label, .stCaption {
+    color:var(--ut-muted);
 }
 
-/* Brand */
 
-.brand {
-    font-size: 1.65rem;
-    font-weight: 800;
-    letter-spacing: -0.04em;
+/* ---------- Responsive layout ---------- */
+.topbar > div {
+    min-width: 0 !important;
 }
-
-.brand-sub {
-    color: #888;
-    font-size: .78rem;
+[data-testid="column"] {
+    min-width: 0 !important;
 }
-
-/* Hero */
-
-.hero-title {
-    font-size: 3.4rem;
-    font-weight: 800;
-    line-height: 1.02;
-    letter-spacing: -0.055em;
-    margin-top: .5rem;
-}
-
-.hero-description {
-    max-width: 850px;
-    color: #888;
-    font-size: 1.05rem;
-    line-height: 1.65;
-    margin-top: 1rem;
-}
-
-/* Section */
-
-.section-title {
-    font-size: 1.75rem;
-    font-weight: 800;
-    letter-spacing: -.035em;
-    margin-top: 2rem;
-}
-
+.event-header,
+.hero-title,
+.hero-description,
+.section-title,
 .section-description {
-    color: #888;
-    margin-bottom: 1.2rem;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
 }
 
-/* Event header */
+/* ---------- Top navigation ---------- */
+.topbar {
+    border-bottom:1px solid var(--ut-border);
+    padding-bottom:.8rem;
+    margin-bottom:1.15rem;
+}
+.brand {
+    font-size:1.65rem;
+    font-weight:800;
+    letter-spacing:-.04em;
+    color:var(--ut-text);
+}
+.brand-sub {
+    color:var(--ut-muted);
+    font-size:.78rem;
+    margin-top:.1rem;
+}
 
+/* ---------- Buttons: target Streamlit 1.62 DOM ---------- */
+div[data-testid="stButton"] > button,
+button[data-testid^="stBaseButton"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius:10px !important;
+    min-height:42px !important;
+    font-weight:650 !important;
+    transition:all .15s ease !important;
+}
+div[data-testid="stButton"] > button:not([data-testid="stBaseButton-primary"]) {
+    background:#FFFFFF !important;
+    border:1px solid #CBD5E1 !important;
+    color:#172033 !important;
+}
+div[data-testid="stButton"] > button:not([data-testid="stBaseButton-primary"]):hover {
+    background:#EFF6FF !important;
+    border-color:#2563EB !important;
+    color:#1D4ED8 !important;
+}
+button[data-testid="stBaseButton-primary"],
+div[data-testid="stButton"] > button[kind="primary"] {
+    background:#2563EB !important;
+    border:1px solid #2563EB !important;
+    color:#FFFFFF !important;
+    box-shadow:0 2px 5px rgba(37,99,235,.18) !important;
+}
+button[data-testid="stBaseButton-primary"] *,
+div[data-testid="stButton"] > button[kind="primary"] * {
+    color:#FFFFFF !important;
+    fill:#FFFFFF !important;
+}
+button[data-testid="stBaseButton-primary"]:hover,
+div[data-testid="stButton"] > button[kind="primary"]:hover {
+    background:#1D4ED8 !important;
+    border-color:#1D4ED8 !important;
+}
+
+/* ---------- Selectbox / BaseWeb ---------- */
+div[data-testid="stSelectbox"] label {
+    color:#475569 !important;
+    font-weight:600 !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+    background:#FFFFFF !important;
+    border:1px solid #CBD5E1 !important;
+    color:#172033 !important;
+    border-radius:10px !important;
+    min-height:42px !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] * {
+    color:#172033 !important;
+    fill:#172033 !important;
+}
+div[data-baseweb="popover"],
+div[role="listbox"] {
+    background:#FFFFFF !important;
+    border:1px solid #CBD5E1 !important;
+}
+div[role="option"] {
+    background:#FFFFFF !important;
+    color:#172033 !important;
+}
+div[role="option"]:hover,
+div[role="option"][aria-selected="true"] {
+    background:#EFF6FF !important;
+    color:#1D4ED8 !important;
+}
+
+/* ---------- Radio / slider / uploader ---------- */
+div[data-testid="stRadio"] label,
+div[data-testid="stFileUploader"] label,
+div[data-testid="stSlider"] label {
+    color:#475569 !important;
+    font-weight:600 !important;
+}
+div[data-testid="stRadio"] div[role="radiogroup"] label p {
+    color:#172033 !important;
+}
+div[data-testid="stSlider"] {
+    color:#172033 !important;
+}
+div[data-testid="stFileUploader"] section {
+    background:#FFFFFF !important;
+    border:1px dashed #CBD5E1 !important;
+    border-radius:12px !important;
+}
+
+/* ---------- Metrics ---------- */
+div[data-testid="stMetric"] {
+    background:#FFFFFF !important;
+    border:1px solid var(--ut-border) !important;
+    border-radius:14px !important;
+    padding:1rem 1.1rem !important;
+    box-shadow:0 1px 2px rgba(15,23,42,.04) !important;
+}
+div[data-testid="stMetricLabel"],
+div[data-testid="stMetricLabel"] * {
+    color:#64748B !important;
+    font-weight:600 !important;
+}
+div[data-testid="stMetricValue"],
+div[data-testid="stMetricValue"] * {
+    color:#172033 !important;
+    font-weight:800 !important;
+}
+div[data-testid="stMetricValue"] {
+    font-size:1.75rem !important;
+    line-height:1.15 !important;
+}
+
+/* ---------- Cards / containers ---------- */
 .event-header {
-    padding: 1.5rem;
-    border: 1px solid rgba(128,128,128,.20);
-    border-radius: 18px;
-    background: rgba(128,128,128,.035);
+    padding:1.35rem;
+    border:1px solid var(--ut-border);
+    border-radius:16px;
+    background:#FFFFFF;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
+}
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-color:var(--ut-border) !important;
+    border-radius:14px !important;
+    background:#FFFFFF !important;
 }
 
-/* Attempt cards */
-
-.attempt-label {
-    color: #888;
-    font-size: .75rem;
-    font-weight: 800;
-    letter-spacing: .12em;
+/* ---------- Alerts ---------- */
+div[data-testid="stAlert"] {
+    border-radius:12px !important;
+    border:1px solid #D9E1EC !important;
+}
+div[data-testid="stAlert"] p,
+div[data-testid="stAlert"] span {
+    color:#172033 !important;
+}
+div[data-testid="stAlert"][kind="info"] {
+    background:#EFF6FF !important;
+    border-left:4px solid #2563EB !important;
+}
+div[data-testid="stAlert"][kind="success"] {
+    background:#F0FDF4 !important;
+    border-left:4px solid #16A34A !important;
+}
+div[data-testid="stAlert"][kind="warning"] {
+    background:#FFFBEB !important;
+    border-left:4px solid #D97706 !important;
+}
+div[data-testid="stAlert"][kind="error"] {
+    background:#FEF2F2 !important;
+    border-left:4px solid #DC2626 !important;
 }
 
-.attempt-action {
-    font-size: 1.35rem;
-    font-weight: 800;
+/* ---------- Tables ---------- */
+div[data-testid="stDataFrame"] {
+    border:1px solid var(--ut-border) !important;
+    border-radius:12px !important;
+    overflow:hidden !important;
+    max-width:100% !important;
+    background:#FFFFFF !important;
+}
+div[data-testid="stDataFrame"] iframe {
+    background:#FFFFFF !important;
 }
 
-/* Status */
-
-.status-allow {
-    color: #42d889;
-    font-weight: 800;
+/* ---------- Code ---------- */
+div[data-testid="stCodeBlock"] {
+    border:1px solid var(--ut-border) !important;
+    border-radius:12px !important;
 }
 
-.status-stop {
-    color: #ffb454;
-    font-weight: 800;
-}
+/* ---------- Status text ---------- */
+.status-allow { color:#16A34A !important; font-weight:800; }
+.status-stop { color:#DC2626 !important; font-weight:800; }
+.status-escalate { color:#D97706 !important; font-weight:800; }
+.attempt-label { color:#64748B; font-size:.72rem; font-weight:800; letter-spacing:.12em; }
+.attempt-action { color:#172033; font-size:1.35rem; font-weight:800; }
 
-.status-escalate {
-    color: #ff6b6b;
-    font-weight: 800;
-}
-
-/* Footer */
-
+/* ---------- Misc ---------- */
+hr { border-color:var(--ut-border) !important; }
 .footer {
-    margin-top: 4rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(128,128,128,.15);
-    text-align: center;
-    color: #777;
+    margin-top:4rem;
+    padding-top:1.5rem;
+    border-top:1px solid var(--ut-border);
+    text-align:center;
+    color:var(--ut-muted);
 }
-
 </style>
 """,
     unsafe_allow_html=True,
@@ -238,6 +396,30 @@ UPLIFT = (
 
 def money(value, decimals=0):
     return f"₹{float(value):,.{decimals}f}"
+
+
+def action_bar_chart(series):
+    data = series.rename("count").reset_index()
+    data.columns = ["intervention", "count"]
+    chart = (alt.Chart(data).mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6)
+        .encode(x=alt.X("intervention:N", title=None, sort="-y", axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("count:Q", title="Events"),
+                color=alt.Color("intervention:N", scale=alt.Scale(
+                    domain=["ALTERNATE_PAYMENT","RETRY_PAYMENT","SEND_REMINDER","UNKNOWN"],
+                    range=["#7C3AED","#2563EB","#F59E0B","#94A3B8"]), legend=None),
+                tooltip=[alt.Tooltip("intervention:N", title="Action"), alt.Tooltip("count:Q", title="Events")])
+        .properties(height=320))
+    st.altair_chart(chart, width="stretch")
+
+
+def recovery_comparison_chart(data):
+    chart = (alt.Chart(data.reset_index()).mark_bar(cornerRadiusTopLeft=8, cornerRadiusTopRight=8)
+        .encode(x=alt.X("Strategy:N", title=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("Recovered revenue:Q", title="Recovered revenue (₹)"),
+                color=alt.Color("Strategy:N", scale=alt.Scale(domain=["Undertow","Always Retry"], range=["#2563EB","#94A3B8"]), legend=None),
+                tooltip=[alt.Tooltip("Strategy:N", title="Strategy"), alt.Tooltip("Recovered revenue:Q", title="Recovered revenue", format=",.0f")])
+        .properties(height=360))
+    st.altair_chart(chart, width="stretch")
 
 
 def set_page(page):
@@ -915,11 +1097,7 @@ elif st.session_state.page == "Batch Analysis":
                 "Recommended actions"
             )
 
-            st.bar_chart(
-                results[
-                    "intervention"
-                ].value_counts()
-            )
+            action_bar_chart(results["intervention"].value_counts())
 
         with c2:
 
@@ -1073,11 +1251,7 @@ elif st.session_state.page == "Portfolio":
                 "Selected action distribution"
             )
 
-            st.bar_chart(
-                selected[
-                    "intervention"
-                ].value_counts()
-            )
+            action_bar_chart(selected["intervention"].value_counts())
 
         with c2:
 
@@ -1682,19 +1856,13 @@ elif st.session_state.page == "Analytics":
         "Strategy"
     )
 
-    st.bar_chart(
-        comparison
-    )
+    recovery_comparison_chart(comparison)
 
     st.subheader(
         "Decision distribution"
     )
 
-    st.bar_chart(
-        decisions[
-            "intervention"
-        ].value_counts()
-    )
+    action_bar_chart(decisions["intervention"].value_counts())
 
     st.subheader(
         "Top recovery opportunities"
