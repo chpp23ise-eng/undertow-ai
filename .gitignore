@@ -2,3 +2,11 @@
 __pycache__/
 *.pyc
 .env
+
+# Generated Undertow files
+data/audit_log.jsonl
+data/portfolio_evaluation.csv
+data/portfolio_selected.csv
+
+# Dashboard backups
+app/dashboard_backup.py

@@ -1,127 +1,240 @@
 import pandas as pd
 
 from decision_engine import load_model, make_decision
-from recovery_service import load_outcomes
 
 
-def main():
+EVENTS_PATH = "data/experiment_test_events.csv"
+OUTCOMES_PATH = "data/experiment_test_outcomes.csv"
+
+
+def get_actual_recovery(row, action):
+    """Get the ground-truth recovery for an intervention."""
+
+    columns = {
+        "RETRY_PAYMENT":
+            "amount_recovered_retry_payment",
+
+        "SEND_REMINDER":
+            "amount_recovered_send_reminder",
+
+        "ALTERNATE_PAYMENT":
+            "amount_recovered_alternate_payment",
+    }
+
+    return float(
+        row[columns[action]]
+    )
+
+
+def find_failure_case():
+
+    print(
+        "Searching held-out experiment "
+        "data for a multi-attempt case..."
+    )
+
+    events = pd.read_csv(
+        EVENTS_PATH
+    )
+
+    outcomes = pd.read_csv(
+        OUTCOMES_PATH
+    )
 
     model = load_model()
 
-    events = pd.read_csv(
-        "data/revenue_events.csv"
+    merged = events.merge(
+        outcomes,
+        on="event_id",
+        how="inner",
+        suffixes=(
+            "",
+            "_outcome",
+        ),
     )
 
-    outcomes = load_outcomes()
+    for _, row in merged.iterrows():
 
-    print("Searching for a failure case...")
-    print()
+        event = {
+            "event_id":
+                row["event_id"],
 
-    for _, event in events.iterrows():
+            "customer_id":
+                row["customer_id"],
 
-        event_dict = event.to_dict()
+            "amount":
+                row["amount"],
+
+            "event_type":
+                row["event_type"],
+
+            "bank":
+                row["bank"],
+
+            "error_code":
+                row["error_code"],
+
+            "product_id":
+                row["product_id"],
+
+            "payment_method":
+                row["payment_method"],
+        }
 
         decision = make_decision(
             model,
-            event_dict,
+            event,
         )
 
-        action = decision[
-            "recommended_action"
-        ]
+        ranked = (
+            decision[
+                "ranked_options"
+            ].copy()
+        )
 
-        matching = outcomes[
-            outcomes["event_id"]
-            == event_dict["event_id"]
-        ]
+        best_action = (
+            ranked.iloc[0][
+                "intervention"
+            ]
+        )
 
-        if matching.empty:
+        best_probability = float(
+            ranked.iloc[0][
+                "recovery_probability"
+            ]
+        )
+
+        best_expected = float(
+            ranked.iloc[0][
+                "expected_recovery"
+            ]
+        )
+
+        best_actual = (
+            get_actual_recovery(
+                row,
+                best_action,
+            )
+        )
+
+        # The best predicted action must fail.
+        if best_actual > 0:
             continue
 
-        row = matching.iloc[0]
+        # Look for another intervention
+        # that actually succeeds.
+        for _, alternative in (
+            ranked.iloc[1:].iterrows()
+        ):
 
-        column = (
-            "amount_recovered_"
-            + action.lower()
-        )
-
-        actual_recovery = row[column]
-
-        if actual_recovery == 0:
-
-            print(
-                "FOUND FAILURE CASE"
-            )
-            print(
-                "==================="
-            )
-            print()
-
-            print(
-                f"Event: "
-                f"{event_dict['event_id']}"
+            alternative_action = (
+                alternative[
+                    "intervention"
+                ]
             )
 
-            print(
-                f"Amount: "
-                f"₹{event_dict['amount']:,.2f}"
+            alternative_actual = (
+                get_actual_recovery(
+                    row,
+                    alternative_action,
+                )
             )
 
-            print(
-                f"Event type: "
-                f"{event_dict['event_type']}"
-            )
+            if alternative_actual > 0:
 
-            print(
-                f"Bank: "
-                f"{event_dict['bank']}"
-            )
+                print()
+                print(
+                    "FOUND FAILURE CASE"
+                )
 
-            print(
-                f"Error: "
-                f"{event_dict['error_code']}"
-            )
+                print(
+                    "==================="
+                )
 
-            print()
+                print()
 
-            print(
-                f"Best action: {action}"
-            )
+                print(
+                    f"Event: "
+                    f"{event['event_id']}"
+                )
 
-            print(
-                f"Predicted probability: "
-                f"{decision['recovery_probability']:.2%}"
-            )
+                print(
+                    f"Amount: "
+                    f"₹{event['amount']:,.2f}"
+                )
 
-            print(
-                f"Expected recovery: "
-                f"₹{decision['expected_recovery']:,.2f}"
-            )
+                print(
+                    f"Event type: "
+                    f"{event['event_type']}"
+                )
 
-            print()
+                print(
+                    f"Bank: "
+                    f"{event['bank']}"
+                )
 
-            print(
-                "Actual result: "
-                "NOT_RECOVERED"
-            )
+                print(
+                    f"Error: "
+                    f"{event['error_code']}"
+                )
 
-            print(
-                "Actual recovered: ₹0.00"
-            )
+                print()
 
-            print()
+                print(
+                    f"Best action: "
+                    f"{best_action}"
+                )
 
-            print(
-                "Use this event to demonstrate "
-                "multi-attempt recovery."
-            )
+                print(
+                    f"Predicted probability: "
+                    f"{best_probability:.2%}"
+                )
 
-            return
+                print(
+                    f"Expected recovery: "
+                    f"₹{best_expected:,.2f}"
+                )
 
+                print(
+                    f"Actual result: "
+                    f"NOT_RECOVERED"
+                )
+
+                print(
+                    f"Actual recovered: "
+                    f"₹{best_actual:,.2f}"
+                )
+
+                print()
+
+                print(
+                    f"Successful alternative: "
+                    f"{alternative_action}"
+                )
+
+                print(
+                    f"Alternative actual recovery: "
+                    f"₹{alternative_actual:,.2f}"
+                )
+
+                print()
+
+                print(
+                    "This event can demonstrate "
+                    "multi-attempt recovery."
+                )
+
+                return event
+
+    print()
     print(
-        "No failure case found."
+        "No suitable multi-attempt failure "
+        "case was found."
     )
+
+    return None
 
 
 if __name__ == "__main__":
-    main()
+
+    find_failure_case()
