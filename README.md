@@ -1,589 +1,309 @@
-# 💰 Undertow
+# Undertow
 
-## Governed AI Revenue Recovery
+**Governed AI Revenue Recovery**
 
-Undertow is an AI-powered revenue recovery agent that analyzes failed revenue events, predicts the most suitable recovery intervention, prioritizes opportunities under limited recovery capacity, and applies deterministic governance before executing recovery actions.
+Undertow decides which failed payments, abandoned checkouts, and overdue invoices are worth recovering, picks the right intervention for each one, and enforces hard limits on how far automation is allowed to go — with every decision logged and explainable.
 
-The system is designed around a simple principle:
+---
 
-> Recover more revenue while keeping automated recovery bounded, explainable, and governed.
+## Results
+
+**Held-out test · 5,000 events**
+
+| Metric | Undertow | Always Retry |
+|---|---:|---:|
+| Revenue recovered | ₹42,019,293 | ₹25,017,608 |
+| Uplift | **+67.96%** | — |
+
+---
+
+## The Problem
+
+Revenue doesn't slip away in one clean step. A payment fails, a checkout gets abandoned, a subscription fails, or an invoice goes overdue.
+
+A simple recovery system may respond to every event the same way — retry everything and hope something works. That wastes recovery capacity on low-value opportunities and gives little explanation for why a particular action was taken.
+
+Undertow treats recovery as a **decision, prioritization, and governance problem**.
 
 ---
 
 ## What Undertow Does
 
-Revenue can be lost because of:
+For every failed revenue event, Undertow:
 
-- Failed payments
-- Abandoned checkouts
-- Failed subscriptions
-- Overdue invoices
+1. **Predicts** the recovery probability of three interventions using an XGBoost model:
+   - `RETRY_PAYMENT`
+   - `SEND_REMINDER`
+   - `ALTERNATE_PAYMENT`
 
-Instead of blindly retrying every failed transaction, Undertow evaluates multiple possible recovery interventions:
+2. **Scores** each option using expected recovery:
 
-- `RETRY_PAYMENT`
-- `SEND_REMINDER`
-- `ALTERNATE_PAYMENT`
+   ```
+   Expected Recovery = Recovery Probability × Amount
+   ```
 
-For each event, Undertow estimates the probability of recovery and calculates the expected recovered revenue.
+3. **Prioritizes** opportunities across the whole batch. When recovery capacity is limited, opportunities are ranked by expected recovery and the highest-value cases are selected first.
 
-The best recovery opportunity can then be selected for execution.
+4. **Governs** every action before execution:
+   - 🟢 **ALLOW** — action satisfies the recovery rules
+   - 🟠 **STOP** — expected recovery is below the minimum threshold
+   - 🔴 **ESCALATE** — automated attempt limit has been reached
+
+5. **Executes and adapts** — if an intervention fails, the agent can select another intervention within the allowed attempt limit.
+
+6. **Logs** decisions and outcomes so automated recovery actions can be reviewed and explained.
 
 ---
 
-# 🔄 Recovery Workflow
+## How It Works
 
-```text
+```
 Failed Revenue Events
-        ↓
-   Input / Upload
-        ↓
+        │
+        ▼
    Decision Engine
-        ↓
+        │
+        ▼
       XGBoost
-        ↓
+        │
+        ▼
  Best Recovery Action
-        ↓
+        │
+        ▼
 Portfolio Prioritization
-        ↓
-   Limited Capacity
-        ↓
-     Governor
-     ↙   ↓   ↘
-  ALLOW STOP ESCALATE
-     ↓
- Recovery Service
-     ↓
-     Outcome
-     ↓
-  Agent State
-     ↓
-   Audit Log
-🧠 Decision Engine
+        │
+        ▼
+      Governor
+   ┌────┼────┐
+   ▼    ▼    ▼
+ALLOW STOP ESCALATE
+   │    │    │
+   ▼    ▼    ▼
+Execute Stop Human Review
+   │
+   ▼
+Outcome
+   │
+   ▼
+Agent State
+   │
+   ▼
+Audit Log
+```
 
-Undertow uses an XGBoost-based decision engine to evaluate recovery opportunities.
+---
 
-For every revenue-loss event, the system considers the available interventions and estimates:
+## Dashboard
 
-Recovery Probability
-        ×
-Transaction Amount
-        =
-Expected Recovery
+Undertow provides a Streamlit dashboard for exploring recovery decisions, portfolio allocation, agent execution, and analytics.
 
-The intervention with the strongest expected recovery opportunity can then be selected.
+![Undertow Dashboard](screenshots/dashboard.png)
 
-Example
-Event: E00002
-Amount: ₹9,668.95
+---
 
-SEND_REMINDER
-Recovery probability: ...
-Expected recovery: ...
+## Recovery Agent
 
-RETRY_PAYMENT
-Recovery probability: ...
-Expected recovery: ...
+The Recovery Agent is a stateful, bounded recovery workflow. If an intervention fails, Undertow can select another intervention rather than blindly repeating the same action.
 
-ALTERNATE_PAYMENT
-Recovery probability: ...
-Expected recovery: ...
+![Recovery Agent](screenshots/recovery-agent.png)
 
-This allows Undertow to consider both the likelihood of recovery and the economic value of the event.
+**Example:**
 
-⚡ Batch Recovery Analysis
+```
+Attempt 1 — ALTERNATE_PAYMENT → FAILED
+Attempt 2 — SEND_REMINDER      → RECOVERED
+```
 
-Undertow can analyze a batch of failed revenue events.
+Automated recovery is bounded by a maximum number of attempts. If recovery cannot be completed within the allowed attempts, the event is escalated for human review.
 
-The batch analysis provides:
+---
 
-Number of transactions
-Revenue at input
-Expected recovery
-Recommended action distribution
-Top recovery opportunities
-Transaction-level decisions
+## Governance
 
-The application supports multiple sample sizes and can also process uploaded CSV data.
+Every automated recovery action passes through a deterministic governor.
 
-Example sample sizes:
-
-100
-500
-1,000
-2,500
-5,000
-
-A new random sample can be generated between runs.
-
-Batch Workflow
-Failed Transactions
-        ↓
-Sample / CSV Upload
-        ↓
-Decision Engine
-        ↓
-Recovery Predictions
-        ↓
-Expected Recovery
-        ↓
-Recommended Actions
-🎯 Portfolio Recovery Optimization
-
-Recovery capacity is often limited.
-
-If there are 5,000 recovery opportunities but only 1,000 recovery actions available, Undertow should not treat every opportunity equally.
-
-The portfolio optimizer ranks opportunities by:
-
-Expected Recovery
-
-and selects the highest-value opportunities within the available capacity.
-
-5,000 Opportunities
-        ↓
-Rank by Expected Recovery
-        ↓
-Recovery Capacity = 1,000
-        ↓
-┌───────────────────┐
-│ 1,000 Selected    │
-└───────────────────┘
-
-        +
-
-┌───────────────────┐
-│ 4,000 Deferred    │
-└───────────────────┘
-
-This allows limited recovery capacity to be allocated toward opportunities with greater expected revenue impact.
-
-Portfolio Metrics
-
-Undertow reports:
-
-Total opportunities
-Selected opportunities
-Deferred opportunities
-Total expected recovery
-Expected recovery from selected opportunities
-Deferred expected recovery
-Recovery opportunity captured
-🛡️ Deterministic Governance
-
-The recovery agent does not execute every predicted action automatically.
-
-Before an action is executed, Undertow evaluates it through a deterministic governor.
-
-The governor can return three decisions:
-
-🟢 ALLOW
-
-The action satisfies the current recovery rules.
-
+**🟢 ALLOW**
+The action satisfies the configured recovery rules.
+```
 Governor: ALLOW
 Execution: EXECUTED
+```
 
-The recovery service can then execute the intervention.
-
-🟠 STOP
-
-The opportunity does not meet the minimum expected-recovery threshold.
-
-The current minimum threshold is:
-
-₹500
-
-Example:
-
+**🟠 STOP**
+The expected recovery is below the minimum threshold.
+```
 Expected recovery: ₹417.21
-
 Governor: STOP
+Reason: Expected recovery is below minimum threshold.
+```
 
-Reason:
-Expected recovery is below minimum threshold.
-
-In this case, the recovery action is not executed.
-
-🔴 ESCALATE
-
-The automated recovery limit has been reached.
-
-The event is then sent for human review instead of continuing automated attempts.
-
-The current maximum automated contact limit is:
-
-3 attempts
-
-Example:
-
-Attempt 1 → FAILED
-Attempt 2 → FAILED
-Attempt 3 → FAILED
-
+**🔴 ESCALATE**
+The automated recovery attempt limit has been reached.
+```
 Maximum attempts reached.
+Final status: HUMAN_REVIEW_REQUIRED
+```
 
-Final status:
-HUMAN_REVIEW_REQUIRED
-🤖 Stateful Recovery Agent
+The governance layer ensures that the prediction model does not have unrestricted control over recovery actions.
 
-The Recovery Agent is the core execution workflow of Undertow.
+---
 
-The agent does not blindly repeat the same intervention.
+## Portfolio Optimization
 
-If an intervention fails, Undertow can select another available recovery action.
+Recovery capacity is limited. Undertow ranks opportunities by expected recovery and allocates available capacity to the highest-value opportunities first.
 
-Example:
+![Portfolio Optimization](screenshots/portfolio.png)
 
-Attempt 1
-SEND_REMINDER
-        ↓
-NOT_RECOVERED
+```
+Recovery Opportunities
+        │
+        ▼
+Rank by Expected Recovery
+        │
+        ▼
+Limited Recovery Capacity
+        │
+   ┌────┴────┐
+   ▼         ▼
+Selected   Deferred
+```
 
-Attempt 2
-ALTERNATE_PAYMENT
-        ↓
-RECOVERED
+The portfolio optimizer reports:
+- Total opportunities
+- Selected opportunities
+- Deferred opportunities
+- Total expected recovery
+- Selected expected recovery
+- Deferred expected recovery
+- Recovery opportunity captured
 
-The agent maintains an attempt history throughout the recovery workflow.
+---
 
-Each attempt can contain:
+## Batch Analysis
 
-Attempt number
-Recommended action
-Recovery probability
-Expected recovery
-Governor decision
-Governor reason
-Execution status
-Actual outcome
-Amount recovered
-🔁 Bounded Recovery
+Undertow can evaluate batches of revenue-loss events using generated samples or uploaded CSV data.
 
-Automated recovery is intentionally bounded.
+![Batch Analysis](screenshots/batch-analysis.png)
 
-The agent does not retry indefinitely.
+The batch analysis provides:
+- Transaction-level predictions
+- Recovery probabilities
+- Expected recovery
+- Recommended interventions
+- Action distribution
+- Top recovery opportunities
 
-The current workflow allows up to three automated attempts.
+---
 
-The basic state transition is:
+## Why Undertow Is Different
 
-                    Start
-                      ↓
-               Select Action
-                      ↓
-                 Governor
-                 /   |   \
-              ALLOW STOP ESCALATE
-                ↓     ↓      ↓
-            Execute  Stop   Human
-                ↓           Review
-             Outcome
-             /     \
-       RECOVERED   FAILED
-          ↓          ↓
-        Finish   Next Action
-                    ↓
-              Attempts < 3?
-                 /      \
-               YES       NO
-                ↓         ↓
-           Continue   Human Review
-📋 Example Recovery Outcomes
+**Revenue-aware**
+Recovery decisions consider expected recovered revenue rather than simply maximizing retry count.
 
-Undertow supports multiple recovery outcomes.
+**Capacity-aware**
+Limited recovery capacity is allocated toward opportunities with higher expected recovery.
 
-Successful Recovery
-Attempt 1
-ALTERNATE_PAYMENT
-        ↓
-RECOVERED
+**Governed**
+A deterministic layer can allow, stop, or escalate automated recovery actions.
 
-Final status:
-RECOVERED
-Recovery Stopped by Governance
-Attempt 1
-ALTERNATE_PAYMENT
-        ↓
-NOT_RECOVERED
+**Stateful**
+The agent tracks previous attempts and can adapt after unsuccessful interventions.
 
-Attempt 2
-RETRY_PAYMENT
+**Bounded**
+Automated recovery operates within explicit limits instead of retrying indefinitely.
 
-Expected recovery < ₹500
-        ↓
-STOP
+**Explainable**
+Each recovery attempt exposes its prediction, governance decision, execution result, and outcome.
 
-Final status:
-RECOVERY_STOPPED
-Human Review Required
-Attempt 1 → FAILED
-Attempt 2 → FAILED
-Attempt 3 → FAILED
+---
 
-Maximum attempts reached
+## Experiment
 
-Final status:
-HUMAN_REVIEW_REQUIRED
-🧪 Held-out Experiment
+Undertow was evaluated against an Always Retry baseline on a held-out set of 5,000 synthetic events.
 
-Undertow includes a held-out experiment comparing its recovery strategy against an Always Retry baseline.
+![Experiment Results](screenshots/results.png)
 
-Metric	Result
-Test Events	5,000
-Undertow Recovery	₹42,019,293
-Always Retry	₹25,017,608
-Uplift	+67.96%
+| Metric | Undertow | Always Retry |
+|---|---:|---:|
+| Revenue recovered | ₹42,019,293 | ₹25,017,608 |
+| Uplift | **+67.96%** | — |
 
-The experiment demonstrates the revenue impact of selecting recovery interventions rather than applying the same retry strategy to every failed event.
+The experiment measures the impact of selecting recovery interventions rather than applying the same retry strategy to every event.
 
-📊 Analytics
+---
 
-The Undertow dashboard provides analytics for evaluating recovery performance.
+## Tech Stack
 
-The analytics section includes:
+`Python` · `XGBoost` · `scikit-learn` · `pandas` · `NumPy` · `Streamlit` · `Docker`
 
-Undertow recovery
-Always Retry baseline
-Uplift
-Decision distribution
-Top recovery opportunities
+---
 
-The comparison makes it easier to understand how intervention selection affects expected revenue recovery.
+## Project Structure
 
-🖥️ Application
-
-Undertow provides a Streamlit dashboard organized around the recovery workflow.
-
-Overview
-
-The Overview section explains:
-
-What Undertow does
-Key recovery metrics
-Recovery workflow
-Governance model
-Core system principles
-Batch Analysis
-
-The Batch Analysis section provides:
-
-Sample selection
-Randomized sample generation
-CSV upload
-Transaction preview
-Batch decision analysis
-Recommended action distribution
-Top recovery opportunities
-Transaction-level decision table
-Portfolio
-
-The Portfolio section provides:
-
-Recovery capacity selection
-Selected opportunities
-Deferred opportunities
-Expected recovery
-Captured recovery opportunity
-Action distribution
-Recovery Agent
-
-The Recovery Agent section provides:
-
-Revenue-loss event selection
-Event details
-Multi-attempt recovery execution
-Attempt history
-Recovery probability
-Expected recovery
-Governor decisions
-Execution status
-Actual outcome
-Final recovery status
-Analytics
-
-The Analytics section provides:
-
-Undertow vs Always Retry comparison
-Decision distribution
-Top experiment opportunities
-Held-out experiment metrics
-🏗️ Architecture
-                       ┌─────────────────────┐
-                       │ Failed Revenue      │
-                       │ Events              │
-                       └──────────┬──────────┘
-                                  ↓
-                       ┌─────────────────────┐
-                       │ Input / CSV Upload  │
-                       └──────────┬──────────┘
-                                  ↓
-                       ┌─────────────────────┐
-                       │ Decision Engine     │
-                       │ XGBoost             │
-                       └──────────┬──────────┘
-                                  ↓
-                       ┌─────────────────────┐
-                       │ Best Recovery       │
-                       │ Action              │
-                       └──────────┬──────────┘
-                                  ↓
-                       ┌─────────────────────┐
-                       │ Portfolio           │
-                       │ Prioritization      │
-                       └──────────┬──────────┘
-                                  ↓
-                       ┌─────────────────────┐
-                       │ Governor            │
-                       │ ALLOW / STOP /      │
-                       │ ESCALATE            │
-                       └───────┬─────┬───────┘
-                               │     │
-                         ALLOW │     │ STOP / ESCALATE
-                               ↓     ↓
-                       ┌───────────────┐
-                       │ Recovery      │
-                       │ Service       │
-                       └───────┬───────┘
-                               ↓
-                       ┌───────────────┐
-                       │ Actual        │
-                       │ Outcome       │
-                       └───────┬───────┘
-                               ↓
-                       ┌───────────────┐
-                       │ Agent State   │
-                       └───────┬───────┘
-                               ↓
-                       ┌───────────────┐
-                       │ Audit /       │
-                       │ Analytics     │
-                       └───────────────┘
-📁 Project Structure
+```
 undertow-ai/
-│
 ├── app/
 │   ├── dashboard.py
 │   ├── agent_loop.py
 │   ├── decision_engine.py
-│   ├── recovery_service.py
-│   ├── governor.py
 │   ├── portfolio_optimizer.py
+│   ├── governor.py
+│   ├── recovery_service.py
 │   ├── evaluate_portfolio.py
 │   └── find_failure_case.py
 │
 ├── data/
-│   ├── experiment_test_events.csv
-│   ├── experiment_test_outcomes.csv
-│   └── experiment_decisions.csv
-│
 ├── models/
-│
 ├── policies/
-│
 ├── tests/
+├── screenshots/
+│   ├── dashboard.png
+│   ├── recovery-agent.png
+│   ├── portfolio.png
+│   ├── batch-analysis.png
+│   └── results.png
 │
 ├── Dockerfile
 ├── .dockerignore
 ├── .gitignore
 ├── requirements.txt
 └── README.md
-⚙️ Running Locally
-1. Create a Virtual Environment
-python -m venv .venv
-2. Activate the Environment
+```
 
-Windows PowerShell:
+---
 
-.venv\Scripts\activate
-3. Install Dependencies
-pip install -r requirements.txt
-4. Start Undertow
-streamlit run app/dashboard.py
+## Run with Docker
 
-The application will be available at:
-
-http://localhost:8501
-🐳 Running with Docker
-
-Undertow can also be run as a Docker container.
-
-Build the Image
+Build the image:
+```bash
 docker build -t undertow-ai .
-Run the Container
+```
+
+Run the container:
+```bash
 docker run -d --name undertow-app -p 8501:8501 undertow-ai
+```
 
-Open:
+Open **http://localhost:8501**
 
-http://localhost:8501
-Check the Container
+Check the running container:
+```bash
 docker ps
-View Application Logs
+```
+
+View application logs:
+```bash
 docker logs undertow-app
-Stop the Container
-docker stop undertow-app
-Start the Container Again
-docker start undertow-app
-Remove the Container
-docker rm undertow-app
-🔐 Design Principles
-Revenue-aware
+```
 
-Recovery decisions consider expected recovered revenue rather than simply maximizing the number of retries.
+---
 
-Capacity-aware
+## Roadmap
 
-Limited recovery capacity is allocated toward opportunities with higher expected recovery.
+Real payment-provider integrations · messaging integrations · online model monitoring · automated model retraining · cost-aware intervention selection · human-review queues · production database integration · authentication and role-based access · expanded audit and compliance controls.
 
-Stateful
+---
 
-The recovery agent tracks previous attempts and can adapt after unsuccessful interventions.
+**Undertow**
 
-Governed
-
-A deterministic governor constrains automated recovery through explicit rules and can allow, stop, or escalate an action.
-
-Explainable
-
-Every recovery attempt exposes the predicted probability, expected recovery, governance decision, execution result, and actual outcome.
-
-Bounded
-
-Automated recovery operates within explicit limits instead of retrying indefinitely.
-
-🧩 Technology Stack
-Python
-Pandas
-NumPy
-Scikit-learn
-XGBoost
-Streamlit
-Docker
-🚀 Future Improvements
-
-Potential extensions include:
-
-Real payment-provider integrations
-Real messaging integrations
-Additional recovery interventions
-Online model monitoring
-Automated model retraining
-Customer-level recovery policies
-Cost-aware intervention selection
-Human-review queues
-Production database integration
-Authentication and role-based access
-Real-time recovery monitoring
-Expanded audit and compliance controls
-Model performance monitoring
-Recovery-cost optimization
-💰 Undertow
-Governed AI Revenue Recovery
-
-Analyze revenue loss.
-
-Choose the right intervention.
-
-Prioritize limited recovery capacity.
-
-Execute within deterministic boundaries.
+*Analyze revenue loss. Choose the right intervention. Prioritize limited capacity. Execute within deterministic boundaries.*
