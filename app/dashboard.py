@@ -329,7 +329,7 @@ hr { border-color:var(--ut-border) !important; }
 # =========================================================
 
 if "page" not in st.session_state:
-    st.session_state.page = "Overview"
+    st.session_state.page = "Home"
 
 if "sample_seed" not in st.session_state:
     st.session_state.sample_seed = 42
@@ -424,6 +424,7 @@ def recovery_comparison_chart(data):
 
 def set_page(page):
     st.session_state.page = page
+    st.session_state.scroll_to_top = True
     st.rerun()
 
 
@@ -579,252 +580,236 @@ def normalize_history(result):
 # TOP NAVIGATION
 # =========================================================
 
-st.markdown(
-    '<div class="topbar"></div>',
-    unsafe_allow_html=True,
-)
+st.markdown('<div class="topbar"></div>', unsafe_allow_html=True)
 
-brand_col, nav1, nav2, nav3, nav4, nav5 = st.columns(
-    [2.4, 1.2, 1.45, 1.25, 1.35, 1.2]
+brand_col, nav1, nav2, nav3, nav4, nav5, nav6 = st.columns(
+    [2.2, 0.95, 1.25, 1.0, 1.2, 0.95, 1.0]
 )
 
 with brand_col:
-
-    st.markdown(
-        '<div class="brand">💰 Undertow</div>',
-        unsafe_allow_html=True,
-    )
-
+    st.markdown('<div class="brand">💰 Undertow</div>', unsafe_allow_html=True)
     st.markdown(
         '<div class="brand-sub">Governed AI Revenue Recovery</div>',
         unsafe_allow_html=True,
     )
 
-
 with nav1:
-
-    if st.button(
-        "Overview",
-        width="stretch",
-    ):
-        set_page("Overview")
-
-
+    if st.button("Home", width="stretch",
+                 type="primary" if st.session_state.page == "Home" else "secondary"):
+        set_page("Home")
 with nav2:
-
-    if st.button(
-        "Batch Analysis",
-        width="stretch",
-    ):
+    if st.button("Batch Analysis", width="stretch",
+                 type="primary" if st.session_state.page == "Batch Analysis" else "secondary"):
         set_page("Batch Analysis")
 
-
+        if st.session_state.pop("scroll_to_top", False):
+                    st.html(
+                        """
+                        <script>
+                        setTimeout(() => {
+                            window.scrollTo({
+                                top: 0,
+                                left: 0,
+                                behavior: "instant"
+                            });
+                        }, 80);
+                        </script>
+                        """,
+                        unsafe_allow_javascript=True,
+                    )
 with nav3:
-
-    if st.button(
-        "Portfolio",
-        width="stretch",
-    ):
+    if st.button("Portfolio", width="stretch",
+                 type="primary" if st.session_state.page == "Portfolio" else "secondary"):
         set_page("Portfolio")
-
-
 with nav4:
-
-    if st.button(
-        "Recovery Agent",
-        width="stretch",
-    ):
+    if st.button("Recovery Agent", width="stretch",
+                 type="primary" if st.session_state.page == "Recovery Agent" else "secondary"):
         set_page("Recovery Agent")
-
-
 with nav5:
-
-    if st.button(
-        "Analytics",
-        width="stretch",
-    ):
+    if st.button("Analytics", width="stretch",
+                 type="primary" if st.session_state.page == "Analytics" else "secondary"):
         set_page("Analytics")
+with nav6:
+    if st.button("Overview", width="stretch",
+                 type="primary" if st.session_state.page == "Overview" else "secondary"):
+        set_page("Overview")
+
+        # Scroll to the top after navigation.
+        if st.session_state.pop("scroll_to_top", False):
+            st.html(
+                """
+                <script>
+                setTimeout(() => {
+                    window.scrollTo({
+                        top: 0,
+                        left: 0,
+                        behavior: "instant"
+                    });
+                }, 80);
+                </script>
+                """,
+                unsafe_allow_javascript=True,
+            )
 
 
 # =========================================================
-# OVERVIEW
+# HOME — PRODUCT LANDING PAGE
 # =========================================================
+# UNDERTOW_HOME_REDESIGN_V2
 
-if st.session_state.page == "Overview":
-
-    st.caption(
-        "AI-POWERED REVENUE RECOVERY"
-    )
-
-    st.markdown(
-        """
-<div class="hero-title">
-Find revenue that's slipping away.<br>
-Decide how to win it back.
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-<div class="hero-description">
-Undertow analyzes failed payments, abandoned checkouts,
-failed subscriptions and overdue receivables. It predicts
-the best recovery intervention, prioritizes opportunities
-under limited capacity, and applies deterministic governance
-before execution.
-</div>
-""",
-        unsafe_allow_html=True,
-    )
+if st.session_state.page == "Home":
 
     st.write("")
-
-    # -----------------------------------------------------
-    # KPI
-    # -----------------------------------------------------
-
-    c1, c2, c3, c4 = st.columns(4)
-
-    c1.metric(
-        "Held-out events",
-        f"{HELD_OUT_EVENTS:,}",
-    )
-
-    c2.metric(
-        "Undertow recovery",
-        money(UNDERTOW_RECOVERY),
-    )
-
-    c3.metric(
-        "Always Retry",
-        money(ALWAYS_RETRY),
-    )
-
-    c4.metric(
-        "Uplift",
-        f"+{UPLIFT:.2f}%",
-    )
-
-    st.divider()
-
-    # -----------------------------------------------------
-    # WORKFLOW
-    # -----------------------------------------------------
+    st.caption("GOVERNED AI REVENUE RECOVERY · PRODUCT OVERVIEW")
 
     st.markdown(
-        '<div class="section-title">How Undertow works</div>',
+        """
+        <div style="max-width:900px;padding:2.2rem 0 1.2rem 0;">
+            <div style="
+                font-size:clamp(2.4rem,5vw,4.4rem);
+                line-height:1.02;font-weight:850;letter-spacing:-.055em;
+                color:#172033;">
+                Recover revenue that<br>
+                would otherwise be lost.
+            </div>
+            <div style="
+                margin-top:1.25rem;max-width:780px;font-size:1.08rem;
+                line-height:1.7;color:#5B6B82;">
+                Undertow finds revenue at risk across failed payments,
+                abandoned checkouts, failed subscriptions and overdue
+                receivables. It predicts the most promising recovery action,
+                prioritizes opportunities by expected recovered revenue,
+                and applies deterministic governance before execution.
+            </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
 
+    # c1, c2, c3, c4 = st.columns(4)
+    # c1.metric("Held-out events", f"{HELD_OUT_EVENTS:,}")
+    # c2.metric("Undertow recovery", money(UNDERTOW_RECOVERY))
+    # c3.metric("Always Retry", money(ALWAYS_RETRY))
+    # c4.metric("Uplift vs baseline", f"+{UPLIFT:.2f}%")
+
+    st.write("")
+    st.divider()
+
+    st.markdown('<div class="section-title">From revenue risk to recovery</div>',
+                unsafe_allow_html=True)
     st.markdown(
         '<div class="section-description">'
-        'From failed revenue event to governed recovery.'
+        'Undertow closes the loop instead of stopping at prediction.'
         '</div>',
         unsafe_allow_html=True,
     )
 
-    workflow = [
-        "Failed Event",
-        "Decision Engine",
-        "Best Action",
-        "Portfolio",
-        "Governor",
-        "Recovery",
-        "Outcome",
+    flow = [
+        ("01", "Detect", "Find failed or at-risk revenue."),
+        ("02", "Predict", "Estimate recovery probability and value."),
+        ("03", "Prioritize", "Select the highest-value opportunities."),
+        ("04", "Govern", "Apply deterministic action rules."),
+        ("05", "Recover", "Run a bounded recovery workflow."),
     ]
 
-    cols = st.columns(len(workflow))
-
-    for col, item in zip(cols, workflow):
-
+    cols = st.columns(5)
+    for col, (number, title, description) in zip(cols, flow):
         with col:
+            st.markdown(
+                f"""
+                <div style="
+                    background:#FFFFFF;border:1px solid #D9E1EC;
+                    border-radius:14px;padding:1.2rem;min-height:155px;
+                    box-shadow:0 1px 2px rgba(15,23,42,.04);">
+                    <div style="font-size:.72rem;font-weight:800;
+                                letter-spacing:.12em;color:#2563EB;">{number}</div>
+                    <div style="margin-top:.55rem;font-size:1.08rem;
+                                font-weight:800;color:#172033;">{title}</div>
+                    <div style="margin-top:.45rem;font-size:.88rem;
+                                line-height:1.5;color:#5B6B82;">{description}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-            st.info(item)
+    st.write("")
+    st.divider()
+
+    left, right = st.columns([1.25, 1])
+
+    with left:
+        st.markdown('<div class="section-title">The key idea</div>',
+                    unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div style="font-size:1.55rem;line-height:1.35;font-weight:800;
+                        letter-spacing:-.025em;color:#172033;max-width:700px;">
+                Most recovery systems optimize individual failures.
+                Undertow optimizes the recovery portfolio.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.write(
+            "When recovery capacity is limited, Undertow ranks opportunities "
+            "by expected recovered revenue instead of treating every failed "
+            "payment equally."
+        )
+
+    with right:
+        st.markdown('<div class="section-title">Controlled automation</div>',
+                    unsafe_allow_html=True)
+        st.write(
+            "The prediction model estimates what is likely to work. "
+            "A deterministic Governor separately decides whether the "
+            "system is permitted to act."
+        )
+        st.success("ALLOW  ·  action satisfies recovery rules")
+        st.warning("STOP  ·  expected recovery is too low")
+        st.error("ESCALATE  ·  human review is required")
 
     st.divider()
 
-    # -----------------------------------------------------
-    # CORE PRINCIPLES
-    # -----------------------------------------------------
-
+    st.markdown('<div class="section-title">Explore Undertow</div>',
+                unsafe_allow_html=True)
     st.markdown(
-        '<div class="section-title">What makes Undertow different</div>',
+        '<div class="section-description">'
+        'Inspect decisions, portfolio selection, agent behavior and measured results.'
+        '</div>',
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3 = st.columns(3)
+    e1, e2, e3, e4 = st.columns(4)
 
-    with c1:
+    with e1:
+        st.markdown("**Batch Analysis**")
+        st.caption("Score a batch of revenue-loss events.")
+        if st.button("Open Batch Analysis", key="home_batch", width="stretch"):
+            set_page("Batch Analysis")
 
-        st.subheader(
-            "🎯 Revenue-aware"
-        )
+    with e2:
+        st.markdown("**Portfolio**")
+        st.caption("See how limited recovery capacity is allocated.")
+        if st.button("Open Portfolio", key="home_portfolio", width="stretch"):
+            set_page("Portfolio")
 
-        st.write(
-            "Actions are ranked using recovery probability "
-            "and transaction value rather than blindly "
-            "retrying every failed payment."
-        )
+    with e3:
+        st.markdown("**Recovery Agent**")
+        st.caption("Run the bounded recovery loop on an event.")
+        if st.button("Open Recovery Agent", key="home_agent", width="stretch"):
+            set_page("Recovery Agent")
 
-    with c2:
+    with e4:
+        st.markdown("**Analytics**")
+        st.caption("Measure recovery against the baseline.")
+        if st.button("Open Analytics", key="home_analytics", width="stretch"):
+            set_page("Analytics")
 
-        st.subheader(
-            "📦 Capacity-aware"
-        )
-
-        st.write(
-            "When recovery capacity is limited, Undertow "
-            "prioritizes the opportunities with the highest "
-            "expected recovered revenue."
-        )
-
-    with c3:
-
-        st.subheader(
-            "🛡️ Governed"
-        )
-
-        st.write(
-            "A deterministic governor can ALLOW, STOP or "
-            "ESCALATE an action before execution."
-        )
-
-    st.divider()
-
-    # -----------------------------------------------------
-    # GOVERNOR
-    # -----------------------------------------------------
-
-    st.markdown(
-        '<div class="section-title">Governance</div>',
-        unsafe_allow_html=True,
+    st.write("")
+    st.caption(
+        "Evaluation uses held-out events and simulated recovery outcomes. "
+        "No real payment or messaging provider is connected."
     )
-
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-
-        st.success(
-            "🟢 ALLOW\n\n"
-            "Action satisfies current recovery rules."
-        )
-
-    with c2:
-
-        st.warning(
-            "🟠 STOP\n\n"
-            "Expected recovery is below the minimum threshold."
-        )
-
-    with c3:
-
-        st.error(
-            "🔴 ESCALATE\n\n"
-            "Maximum automated contact limit has been reached."
-        )
-
 
 # =========================================================
 # BATCH ANALYSIS
@@ -934,7 +919,7 @@ elif st.session_state.page == "Batch Analysis":
         )
 
         st.dataframe(
-            input_data.head(10),
+            input_data.head(5),
             width="stretch",
             hide_index=True,
         )
@@ -1126,6 +1111,14 @@ elif st.session_state.page == "Batch Analysis":
             hide_index=True,
         )
 
+        st.download_button(
+            "Download Results CSV",
+            data=results.to_csv(index=False),
+            file_name="undertow_batch_results.csv",
+            mime="text/csv",
+            width="stretch",
+        )
+
 
 # =========================================================
 # PORTFOLIO
@@ -1145,8 +1138,8 @@ elif st.session_state.page == "Portfolio":
     source = st.radio(
         "Opportunity source",
         [
-            "Held-out experiment",
             "Current batch",
+            "Held-out experiment",
         ],
         horizontal=True,
     )
@@ -1276,6 +1269,14 @@ elif st.session_state.page == "Portfolio":
             selected,
             width="stretch",
             hide_index=True,
+        )
+
+        st.download_button(
+            "Download Portfolio CSV",
+            data=selected.to_csv(index=False),
+            file_name="undertow_selected_portfolio.csv",
+            mime="text/csv",
+            width="stretch",
         )
 
 
@@ -1513,10 +1514,15 @@ elif st.session_state.page == "Recovery Agent":
                 "Agent Result"
             )
 
+            st.caption(
+                "Demo mode: recovery execution and outcomes are simulated. "
+                "No real payment or messaging provider is connected."
+            )
+
             if final_status == "RECOVERED":
 
                 st.success(
-                    "✅ RECOVERY SUCCESSFUL"
+                    "🧪 SIMULATED RECOVERY SUCCESSFUL"
                 )
 
             elif final_status == "RECOVERY_STOPPED":
@@ -1553,7 +1559,7 @@ elif st.session_state.page == "Recovery Agent":
             )
 
             c3.metric(
-                "Amount recovered",
+                "Simulated amount recovered",
                 money(
                     recovered,
                     2,
@@ -1730,6 +1736,17 @@ elif st.session_state.page == "Recovery Agent":
                                 f"{actual}"
                             )
 
+                history_df = pd.DataFrame(history)
+
+                st.download_button(
+                    "Download Recovery History CSV",
+                    data=history_df.to_csv(index=False),
+                    file_name="undertow_recovery_history.csv",
+                    mime="text/csv",
+                    width="stretch",
+                    key="recovery_history_download",
+                    )    
+
             # -------------------------------------------------
             # FINAL GOVERNANCE
             # -------------------------------------------------
@@ -1878,6 +1895,193 @@ elif st.session_state.page == "Analytics":
         width="stretch",
         hide_index=True,
     )
+
+    st.download_button(
+        "Download Analytics CSV",
+        data=decisions.to_csv(index=False),
+        file_name="undertow_analytics_decisions.csv",
+        mime="text/csv",
+        width="stretch",
+    )
+
+
+# =========================================================
+# OVERVIEW
+# =========================================================
+
+elif st.session_state.page == "Overview":
+
+    st.caption(
+        "SYSTEM OVERVIEW"
+    )
+
+    st.markdown(
+        """
+<div class="hero-title">
+How Undertow turns revenue risk into governed recovery.
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+<div class="hero-description">
+This technical view explains Undertow's recovery pipeline:
+prediction, portfolio optimization, deterministic governance,
+and bounded recovery execution.
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.write("")
+
+    # -----------------------------------------------------
+    # KPI
+    # -----------------------------------------------------
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
+        "Held-out events",
+        f"{HELD_OUT_EVENTS:,}",
+    )
+
+    c2.metric(
+        "Undertow recovery",
+        money(UNDERTOW_RECOVERY),
+    )
+
+    c3.metric(
+        "Always Retry",
+        money(ALWAYS_RETRY),
+    )
+
+    c4.metric(
+        "Uplift",
+        f"+{UPLIFT:.2f}%",
+    )
+
+    st.divider()
+
+    # -----------------------------------------------------
+    # WORKFLOW
+    # -----------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">How Undertow works</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<div class="section-description">'
+        'From failed revenue event to governed recovery.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    workflow = [
+        "Failed Event",
+        "Decision Engine",
+        "Best Action",
+        "Portfolio",
+        "Governor",
+        "Recovery",
+        "Outcome",
+    ]
+
+    cols = st.columns(len(workflow))
+
+    for col, item in zip(cols, workflow):
+
+        with col:
+
+            st.info(item)
+
+    st.divider()
+
+    # -----------------------------------------------------
+    # CORE PRINCIPLES
+    # -----------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">What makes Undertow different</div>',
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        st.subheader(
+            "🎯 Revenue-aware"
+        )
+
+        st.write(
+            "Actions are ranked using recovery probability "
+            "and transaction value rather than blindly "
+            "retrying every failed payment."
+        )
+
+    with c2:
+
+        st.subheader(
+            "📦 Capacity-aware"
+        )
+
+        st.write(
+            "When recovery capacity is limited, Undertow "
+            "prioritizes the opportunities with the highest "
+            "expected recovered revenue."
+        )
+
+    with c3:
+
+        st.subheader(
+            "🛡️ Governed"
+        )
+
+        st.write(
+            "A deterministic governor can ALLOW, STOP or "
+            "ESCALATE an action before execution."
+        )
+
+    st.divider()
+
+    # -----------------------------------------------------
+    # GOVERNOR
+    # -----------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Governance</div>',
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        st.success(
+            "🟢 ALLOW\n\n"
+            "Action satisfies current recovery rules."
+        )
+
+    with c2:
+
+        st.warning(
+            "🟠 STOP\n\n"
+            "Expected recovery is below the minimum threshold."
+        )
+
+    with c3:
+
+        st.error(
+            "🔴 ESCALATE\n\n"
+            "Maximum automated contact limit has been reached."
+        )
+
+
 
 
 # =========================================================
