@@ -898,21 +898,57 @@ elif st.session_state.page == "Batch Analysis":
             type=["csv"],
         )
 
+        input_data = None
+
         if uploaded is not None:
+            try:
+                input_data = pd.read_csv(uploaded)
 
-            input_data = pd.read_csv(
-                uploaded
-            )
+                required_columns = [
+                    "event_id",
+                    "amount",
+                    "event_type",
+                    "bank",
+                    "error_code",
+                    "product_id",
+                    "payment_method",
+                ]
 
-            st.success(
-                f"{len(input_data):,} transactions loaded."
-            )
+                missing_columns = [
+                    column
+                    for column in required_columns
+                    if column not in input_data.columns
+                ]
+
+                if missing_columns:
+                    st.error(
+                        "Invalid CSV. Missing required columns: "
+                        + ", ".join(missing_columns)
+                    )
+                    input_data = None
+
+                elif input_data.empty:
+                    st.error(
+                        "Invalid CSV. The file contains no transactions."
+                    )
+                    input_data = None
+
+                else:
+                    st.success(
+                        f"{len(input_data):,} transactions loaded."
+                    )
+
+            except Exception as e:
+                st.error(
+                    f"Could not read the CSV file: {e}"
+                )
+                input_data = None
 
     # -----------------------------------------------------
     # PREVIEW
     # -----------------------------------------------------
 
-    if not input_data.empty:
+    if input_data is not None and not input_data.empty:
 
         st.subheader(
             "Input preview"
